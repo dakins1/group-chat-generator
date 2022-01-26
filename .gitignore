@@ -1,0 +1,6 @@
+target/
+.bloop/
+.bsp/
+.metals/
+*.code-workspace
+*metals.sbt
