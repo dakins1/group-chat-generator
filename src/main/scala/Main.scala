@@ -53,11 +53,10 @@ object Main extends App {
     }
 
     //From alvin alexander
-    def getListOfSubDirectories(dir: File): List[String] =
-    dir.listFiles
-       .filter(_.isDirectory)
-       .map(_.getName)
-       .toList
+    def getListOfSubDirectories(dir: File): List[String] = dir.listFiles
+        .filter(_.isDirectory)
+        .map(_.getName)
+        .toList
 
     //groupMe exports all the messages across dozens of randomly numbered folders, this puts all
     //folder names into a list
@@ -119,6 +118,11 @@ object Main extends App {
 
 /*
 TODO 
+going to be too difficult to functionalize file i/o and user input at first
+start with functionalizing ngram algies
+    - one with HOF
+    - one for humans to read
+
 break down the messages stuff, or at least reduce use of messages.map nonsense
 figure out what the randome substring stuff is, and find a better way of explaining/coding that
 document the json format, maybe either through comments, case classes, or something idk. Nvm already have case classes,
@@ -129,9 +133,8 @@ Rewatch that processing video on how to make ngrams
 
 comments for any functional heavy stuff
 
-this will be great thing to work on over weekend
-
 and of course, somehow parameterizing the groupme input
+    - list out all usernames / group chats, have command line prompt to select who or which chat to emulate
 
 
 
