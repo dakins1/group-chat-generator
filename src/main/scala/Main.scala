@@ -36,7 +36,7 @@ object Main extends App {
     val gruesomeFivesome = "30334096"
 
     def getGF(folderNumber:String):Unit= {
-        val filePath = "../../Downloads/groupMeExport/" + folderNumber + "/conversation.json"
+        val filePath = "../groupMeExport/" + folderNumber + "/conversation.json"
         val messages = Source.fromFile(filePath)(Codec("utf-8")).getLines().toArray.apply(0)
         //not sure what this line does, keeping it for now but should delete later        
         // val json = parse(messages).children.map(_.extract[Group])//.filter(_.name != null).filter(_.name == "Gruesome Fivesome").head.id
@@ -45,11 +45,11 @@ object Main extends App {
 
     //given a subfolder number, extract all messages from that subfolder
     def getMessages(folderNumber:String):Seq[Message] = {
-        val filePath = "../../Downloads/groupMeExport/" + folderNumber + "/message.json"
+        val filePath = "../groupMeExport/" + folderNumber + "/message.json"
         //entirety of json object is one big array of messages, so call .children to get all messages
         val messageArray = Source.fromFile(filePath)(Codec("utf-8")).mkString
         val json = parse(messageArray).children 
-        return json.map(_.extract[Message]).filter(_.text != null)
+        json.map(_.extract[Message]).filter(_.text != null)
     }
 
     //From alvin alexander
@@ -60,24 +60,59 @@ object Main extends App {
 
     //groupMe exports all the messages across dozens of randomly numbered folders, this puts all
     //folder names into a list
-    val folderNums = getListOfSubDirectories(new File("../../Downloads/groupMeExport"))
+    val folderNums = getListOfSubDirectories(new File("../groupMeExport"))
     // val messages = folderNums.map(n => getMessages(n)).flatMap(_.filter(m => m.user_id == leon))
     val messages = getMessages(gruesomeFivesome)
+
+    /**
+      * Given a string and integer n, slide over all n-length substrings and store the trailing character
+      * @param n length of ngram 
+      * @param text input string
+      * @return A mapping between n-length substrings and each instance of a following character from this string
+      */
+    def parseNgram(n:Int, text:String):Map[String, List[Char]] = {
+        def helper(subtext:List[Char], nChars:List[Char], nCharsLength:Int, chain:Map[List[Char], List[Char]]):Map[List[Char], List[Char]] = (subtext -> nChars) match {
+            case (Nil, _) => chain 
+            case (s::ss, nChars) if (nCharsLength < n) => helper(ss, nChars:+s, nCharsLength+1, chain)
+            case (s::ss, nChars) =>     
+                val followers = chain.getOrElse(nChars, Nil)
+                val newChain = chain + (nChars -> (s::followers))
+                helper(ss, nChars.tail:+s, nCharsLength, newChain) 
+        }
+        helper(text.toList, List(), 0, Map.empty[List[Char],List[Char]]).map(t => t._1.toString() -> t._2)   
+    }
+    
+    def parseNgrams(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
+        //walk through each message
+        ???
+    }
 
     def ngram(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
         //A plain recursive function would have been much cleaner code, but sometimes I can't resist scala's HOFs
         //Technically isn't functional since I use a mutable Set :(, but theoretically could be passed around the 
-        //fold and could be functional
-        //need to figure out what exactly this is doing, add better comments to it, and make that Set functional!
+            //fold and could be functional
         var seen = Set[String]().empty
+        //this iterates over every message, one message at a time
+        //eventually returns a Map[String,Seq[Char]], the markov chain
         texts.foldLeft(Map[String,Seq[Char]]().empty){
             case (oldMap, message) =>
+                //unclear why there has to be a max length
                 val maxLength = message.length - n - 1 //-1 so there is a following char to add to the gram
+                //message.foldLeft returns a tuple, but we throw away the count val and keep the Map[String,Seq[Char]] generated
                 val (map, _) = message.foldLeft((oldMap, 0)){
                     case ((old, count), _) =>
+                                                     //now why is this count+1?? I think count+1 gets thrown away anyway
                         if (count > maxLength) (old, count+1) //less than n chars left
                         else {
+                            //so we move along down the message, and take substrings each step of the way
+                            //boooo!! bad!!! Totally could just chomp 1 char at a time, while reading ahead n chars
+                            //but then we're doing n operations for every character, if n is the order of gram...still would just be constant while either
+                                //length of output or length of message data determines complexity
+                            //could probably come up with clever way to functionally slide the window of chars along
                             val str = message.subSequence(count, count+n).toString()
+                            //if gram already seen, add the newfound following char to the map
+                            //probs could do without if/else 
+                            //lol, looking back on this, this is such bad code. Literally just have to check if the map already contains the elem
                             if (seen(str)) (old + (str -> (old(str):+message.charAt(count+n))), count+1)
                             else { 
                                 seen+=str
@@ -92,9 +127,15 @@ object Main extends App {
     def make(n:Int, limit:Int, gram:Map[String, Seq[Char]], possibs:Set[String], str:String):String = {
         if (str.length() == limit) str
         else {
-            val k = str.substring(str.length()-n)
+            val k = str.substring(str.length()-n) //i wonder if in haskell this would be Shlemiel
+            //possibs kind of redundant, could just check if gramp(k) returns a result or not
             if (possibs(k)) {
                 val s = gram(k)
+                //this is appending a random character from the sequence of possible trailing characters for this instance of n-gram
+                //probability comes from the fact that repeat chars are in the map, then random one is drawn
+                //could easily do some sort of probability store - with values updated each time a char is appended
+                    //however for simplicity we will keep the non-distinct Seq[Char](random.Int), maybe update in future
+                //also important to note that it picks one char at a time, rather than appending n chars
                 make(n, limit, gram, possibs, str+s(scala.util.Random.nextInt(s.length)))
             } else str
             
@@ -102,17 +143,19 @@ object Main extends App {
     }
     val order = 11
     val grams = ngram(order, messages.map(_.text.toLowerCase()))
+    val x = grams.filter(s => s._2.distinct.size != s._2.size)
     val r = scala.util.Random
     //Filter out words less than 10 characters long. I guess this is just to start things off
+    //can remove this with the length < n conditional in helper
     val starters = messages.flatMap(_.text.split(" ").filter(_.length() >= order))
     // val starters = grams.map(_._1).toSeq
     // val starterM = messages(r.nextInt(messages.length)).text
     // val ss = if (starterM.length > order) r.nextInt(starterM.length()-order) else 0
     // val starter = starterM.substring(ss, ss+order)
-    for (_ <- 0 to 10) {
-        val starter = starters(r.nextInt(starters.length))
-        println(make(order, 200, grams, grams.map(_._1).toSet, starter))
-        println()
+    for (_ <- 1 to 1) {
+        // val starter = starters(r.nextInt(starters.length))
+        // println(make(order, 200, grams, grams.map(_._1).toSet, starter))
+        println(parseNgram(3, "123456789"))
     }
 }
 
@@ -120,8 +163,16 @@ object Main extends App {
 TODO 
 going to be too difficult to functionalize file i/o and user input at first
 start with functionalizing ngram algies
-    - one with HOF
     - one for humans to read
+    - one with HOF
+define complexity --- so far it is O(n*m), where n = # of chars from training data and m = somewhat confusingly, the n defined by ngram
+
+make probabilities not use non-distinct Seq[Char] and random index for probabilities - would be a no-no in haskell ;)
+    There probably exists some clever algorithm to summarize probabilities and outputs 
+
+also could probs make some more objects for all this, although might be overkill for existing functionality - needs to be driven by advanced features
+another idea is to abstract away the fact this algorithm is for groupme messages; allow it to take a Seq of any type instead. Then, make a GroupMe class that
+    configures groupme messages to fit this algorithm
 
 break down the messages stuff, or at least reduce use of messages.map nonsense
 figure out what the randome substring stuff is, and find a better way of explaining/coding that
@@ -129,13 +180,9 @@ document the json format, maybe either through comments, case classes, or someth
 maybe figure something better out. Or just better explain them
 
 Add comments throughout the code, especially on the parts with argument-dense function calls
-Rewatch that processing video on how to make ngrams
-
-comments for any functional heavy stuff
+    comments for any functional heavy stuff
 
 and of course, somehow parameterizing the groupme input
     - list out all usernames / group chats, have command line prompt to select who or which chat to emulate
-
-
 
 */
