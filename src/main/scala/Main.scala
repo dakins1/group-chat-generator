@@ -84,9 +84,17 @@ object Main extends App {
         helper(text.toList, List(), 0, chain)  
     }
     
-    def parseNgrams(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
-        // texts.foldLeft
-        ???
+    /**
+      * Parses an ngram from multiple sources of text
+      *
+      * @param n length of ngram
+      * @param texts list of input strings
+      * @return A mapping between n-length substrings and each instance of a following character from all strings in texts
+      */
+    def parseNgrams(n:Int, texts:Seq[String]):Map[List[Char], Seq[Char]] = {
+        texts.foldLeft(Map.empty[List[Char], List[Char]]) { 
+            (chain, text) => parseNgram(n, text, chain)
+        }
     }
 
     def ngram(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
@@ -158,6 +166,7 @@ object Main extends App {
         // val starter = starters(r.nextInt(starters.length))
         // println(make(order, 200, grams, grams.map(_._1).toSet, starter))
         println(parseNgram(3, "123456789"))
+        println(parseNgrams(3, List("12345", "54321", "12346")))
     }
 }
 
