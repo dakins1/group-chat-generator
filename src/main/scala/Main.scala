@@ -68,10 +68,12 @@ object Main extends App {
       * Given a string and integer n, slide over all n-length substrings and store the trailing character
       * @param n length of ngram 
       * @param text input string
+      * @param chain An existing markov chain to add on to; by default assumes empty map
       * @return A mapping between n-length substrings and each instance of a following character from this string
       */
-    def parseNgram(n:Int, text:String):Map[String, List[Char]] = {
-        def helper(subtext:List[Char], nChars:List[Char], nCharsLength:Int, chain:Map[List[Char], List[Char]]):Map[List[Char], List[Char]] = (subtext -> nChars) match {
+    def parseNgram(n:Int, text:String, chain:Map[List[Char], List[Char]] = Map.empty[List[Char], List[Char]] ):Map[List[Char],List[Char]] = {
+
+        def helper(subtext:List[Char], nChars:List[Char], nCharsLength:Int, chain:Map[List[Char], List[Char]]):Map[List[Char],List[Char]] = (subtext -> nChars) match {
             case (Nil, _) => chain 
             case (s::ss, nChars) if (nCharsLength < n) => helper(ss, nChars:+s, nCharsLength+1, chain)
             case (s::ss, nChars) =>     
@@ -79,11 +81,11 @@ object Main extends App {
                 val newChain = chain + (nChars -> (s::followers))
                 helper(ss, nChars.tail:+s, nCharsLength, newChain) 
         }
-        helper(text.toList, List(), 0, Map.empty[List[Char],List[Char]]).map(t => t._1.toString() -> t._2)   
+        helper(text.toList, List(), 0, chain)  
     }
     
     def parseNgrams(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
-        //walk through each message
+        // texts.foldLeft
         ???
     }
 
