@@ -91,10 +91,34 @@ object Main extends App {
       * @param texts list of input strings
       * @return A mapping between n-length substrings and each instance of a following character from all strings in texts
       */
-    def parseNgrams(n:Int, texts:Seq[String]):Map[List[Char], Seq[Char]] = {
+    def parseNgrams(n:Int, texts:List[String]):Map[List[Char], List[Char]] = {
         texts.foldLeft(Map.empty[List[Char], List[Char]]) { 
             (chain, text) => parseNgram(n, text, chain)
         }
+    }
+
+    //Can't quite remember what was going on here. I think I was working generateChat with an interal "get starter text" function, formerly known as "helper"
+        //and then decided to start breaking things up. 
+
+        //get text from starter?? What text am I getting
+        //oh i see it's quite literal. and Generate Chat is the main method connecting everything
+        //in this case, lastGram can also be starter text. probs speicify in scala docs
+        //def needs a better name than this
+    def getTextFromStarter(targetLength:Int, lastGram:List[Char], gram:Map[List[Char],List[Char]]):List[Char] = gram.get(lastGram) match {
+            case _ if targetLength == 0 => Nil
+            case None => Nil
+            case Some(value) if targetLength > 0 =>
+                    val r = scala.util.Random.nextInt(gram(lastGram).length) //inefficient, maybe probability summary would fix
+                    val newChar = gram(lastGram)(r) 
+                    newChar::getTextFromStarter(targetLength-1, lastGram.tail:+newChar, gram)
+    }
+
+    def generateChat(n:Int, length:Int, gram:Map[List[Char],List[Char]]):String = {
+        
+        
+        val starters = gram.map(_._1).toList //actually isn't ideal cuz it starts out a message very stupidly 
+        val r = scala.util.Random.nextInt(starters.length)
+        getTextFromStarter(length, starters(r), gram).mkString
     }
 
     def ngram(n:Int, texts:Seq[String]):Map[String, Seq[Char]] = {
@@ -151,22 +175,21 @@ object Main extends App {
             
         }
     }
-    val order = 11
-    val grams = ngram(order, messages.map(_.text.toLowerCase()))
+    val order = 10
+    val charLimit = 200
+    val grams = parseNgrams(order, messages.map(_.text.toLowerCase()).toList)
     val x = grams.filter(s => s._2.distinct.size != s._2.size)
     val r = scala.util.Random
     //Filter out words less than 10 characters long. I guess this is just to start things off
     //can remove this with the length < n conditional in helper
-    val starters = messages.flatMap(_.text.split(" ").filter(_.length() >= order))
-    // val starters = grams.map(_._1).toSeq
-    // val starterM = messages(r.nextInt(messages.length)).text
-    // val ss = if (starterM.length > order) r.nextInt(starterM.length()-order) else 0
-    // val starter = starterM.substring(ss, ss+order)
-    for (_ <- 1 to 1) {
+   
+    for (_ <- 1 to 10) {
         // val starter = starters(r.nextInt(starters.length))
         // println(make(order, 200, grams, grams.map(_._1).toSet, starter))
-        println(parseNgram(3, "123456789"))
-        println(parseNgrams(3, List("12345", "54321", "12346")))
+        // println(parseNgram(3, "123456789"))
+        // println(parseNgrams(3, List("12345", "54321", "12346")))
+        println(generateChat(order, charLimit, grams))
+        // println(getTextFromStarter(charLimit, grams.map(_._1).toList(4), grams).toString)
     }
 }
 
@@ -196,4 +219,5 @@ Add comments throughout the code, especially on the parts with argument-dense fu
 and of course, somehow parameterizing the groupme input
     - list out all usernames / group chats, have command line prompt to select who or which chat to emulate
 
+Make NGram its own type?? That way revising types is easier. Could start with case class, then work way up to type-paramterized object
 */
