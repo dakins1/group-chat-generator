@@ -4,3 +4,4 @@ target/
 .metals/
 *.code-workspace
 *metals.sbt
+.vscode/
