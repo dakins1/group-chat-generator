@@ -5,6 +5,8 @@ import scala.io.Source
 import java.io.File
 import scala.io.Codec
 
+import ngram._
+
 case class Message(
     name:String,
     text:String,
@@ -155,6 +157,7 @@ object Main extends App {
     for (_ <- 1 to 10) {
         println(generateChat(charLimit, grams))
     }
+
 }
 
 /*
