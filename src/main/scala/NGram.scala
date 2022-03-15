@@ -14,16 +14,16 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
     val grams = parseNgrams(order, trainingData)
 
     /**
-      * Given a string and integer n, slide over all n-length substrings and store the trailing character
+      * Given a list of data and integer n, slide over all n-length sublists and store the trailing element
       * 
       * @param n length of ngram 
-      * @param text input string
+      * @param data input data
       * @param chain An existing markov chain to add on to; by default assumes empty map
-      * @return A mapping between n-length substrings and each instance of a following character from this string
+      * @return A mapping between n-length sublists and each instance of a following element from data
       */
-    private def parseNgram(n:Int, text:List[A], chain:Map[List[A], List[A]] = Map.empty[List[A], List[A]] ):Map[List[A],List[A]] = {
+    private def parseNgram(n:Int, data:List[A], chain:Map[List[A], List[A]] = Map.empty[List[A], List[A]] ):Map[List[A],List[A]] = {
 
-        def helper(subtext:List[A], nAs:List[A], nAsLength:Int, chain:Map[List[A], List[A]]):Map[List[A],List[A]] = (subtext -> nAs) match {
+        def helper(sublist:List[A], nAs:List[A], nAsLength:Int, chain:Map[List[A], List[A]]):Map[List[A],List[A]] = (sublist -> nAs) match {
             case (Nil, _) => chain 
             case (s::ss, nAs) if (nAsLength < n) => helper(ss, nAs:+s, nAsLength+1, chain)
             case (s::ss, nAs) =>     
@@ -31,32 +31,32 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
                 val newChain = chain + (nAs -> (s::followers))
                 helper(ss, nAs.tail:+s, nAsLength, newChain) 
         }
-        helper(text.toList, List(), 0, chain)  
+        helper(data, List(), 0, chain)  
     }
     
     /**
-      * Parses an ngram from multiple sources of text
+      * Parses an ngram from multiple sources of data
       *
       * @param n length of ngram
-      * @param texts list of input strings
-      * @return A mapping between n-length substrings and each instance of a following character from all strings in texts
+      * @param data list of input data
+      * @return A mapping between n-length sublists and each instance of a following element from all lists in data
       */
-    private def parseNgrams(n:Int, texts:List[List[A]]):Map[List[A], List[A]] = {
-        texts.foldLeft(Map.empty[List[A], List[A]]) { 
+    private def parseNgrams(n:Int, data:List[List[A]]):Map[List[A], List[A]] = {
+        data.foldLeft(Map.empty[List[A], List[A]]) { 
             (chain, text) => parseNgram(n, text, chain)
         }
     }
 
     /**
-      * Given a starting string that is within the possible ngram mappings, generate a text up to specified length
+      * Given a starting List[A] that is within the possible ngram mappings, generate data up to specified length
       * using the ngram probabilities
       *
-      * @param targetLength max length of generated string
+      * @param targetLength max length of generated data
       * @param starter starting input, must be within possible ngram mappings
       * @param gram pre-generated ngram mappings
       * @return
       */
-    private def getTextFromStarter(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
+    private def getDataFromStarter(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
 
         def helper(limit:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = gram.get(prevGram) match {
             case _ if limit == 0 => Nil
@@ -82,6 +82,8 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
         //There are probably more clever ways to do this, but doing this easy option for now
             //rly hate this though because this automatically filters out beginning of messages, which are 
             //the most realistic sentence starters
+        // TODO: keeping this as '...Text...' function since it still can only work with text. 
+            // Need to devise way for starters with generic type
         val starters = gram.map(_._1).filter(m => m.head == ' ').toList
         starters(scala.util.Random.nextInt(starters.length))
     }
@@ -93,16 +95,16 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
       * @param gram
       * @return
       */
-    private def generateChat(lengthLimit:Int, gram:Map[List[A],List[A]]):List[A] = {
+    private def generateData(lengthLimit:Int, gram:Map[List[A],List[A]]):List[A] = {
         val s = getStarterTextFromGram(gram)
-        getTextFromStarter(lengthLimit, s, gram)
+        getDataFromStarter(lengthLimit, s, gram)
     }
 
     // Defaulting to max int value is lame, but easy temporary solution while I get class interface working
         // Need to re-write getTextFromStarter to handle infinite strings (and make tailrec too if we're going that deep)
     def generateData():List[A] = lengthLimit match {
-        case None => generateChat(Int.MaxValue, grams)
-        case Some(lim) => generateChat(lim, grams)
+        case None => generateData(Int.MaxValue, grams)
+        case Some(lim) => generateData(lim, grams)
     }
 
 
