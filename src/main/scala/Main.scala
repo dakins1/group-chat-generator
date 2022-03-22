@@ -5,6 +5,8 @@ import scala.io.Source
 import java.io.File
 import scala.io.Codec
 
+import ngram._
+
 case class Message(
     name:String,
     text:String,
@@ -54,107 +56,24 @@ object Main extends App {
         .filter(_.isDirectory)
         .map(_.getName)
         .toList
-
-    /**
-      * Given a string and integer n, slide over all n-length substrings and store the trailing character
-      * 
-      * @param n length of ngram 
-      * @param text input string
-      * @param chain An existing markov chain to add on to; by default assumes empty map
-      * @return A mapping between n-length substrings and each instance of a following character from this string
-      */
-    def parseNgram(n:Int, text:String, chain:Map[List[Char], List[Char]] = Map.empty[List[Char], List[Char]] ):Map[List[Char],List[Char]] = {
-
-        def helper(subtext:List[Char], nChars:List[Char], nCharsLength:Int, chain:Map[List[Char], List[Char]]):Map[List[Char],List[Char]] = (subtext -> nChars) match {
-            case (Nil, _) => chain 
-            case (s::ss, nChars) if (nCharsLength < n) => helper(ss, nChars:+s, nCharsLength+1, chain)
-            case (s::ss, nChars) =>     
-                val followers = chain.getOrElse(nChars, Nil)
-                val newChain = chain + (nChars -> (s::followers))
-                helper(ss, nChars.tail:+s, nCharsLength, newChain) 
-        }
-        helper(text.toList, List(), 0, chain)  
-    }
     
-    /**
-      * Parses an ngram from multiple sources of text
-      *
-      * @param n length of ngram
-      * @param texts list of input strings
-      * @return A mapping between n-length substrings and each instance of a following character from all strings in texts
-      */
-    def parseNgrams(n:Int, texts:List[String]):Map[List[Char], List[Char]] = {
-        texts.foldLeft(Map.empty[List[Char], List[Char]]) { 
-            (chain, text) => parseNgram(n, text, chain)
-        }
-    }
-
-    /**
-      * Given a starting string that is within the possible ngram mappings, generate a text up to specified length
-      * using the ngram probabilities
-      *
-      * @param targetLength max length of generated string
-      * @param starter starting input, must be within possible ngram mappings
-      * @param gram pre-generated ngram mappings
-      * @return
-      */
-    def getTextFromStarter(lengthLimit:Int, starter:List[Char], gram:Map[List[Char],List[Char]]):List[Char] = {
-
-        def helper(limit:Int, prevGram:List[Char], gram:Map[List[Char],List[Char]]):List[Char] = gram.get(prevGram) match {
-            case _ if limit == 0 => Nil
-            case None => Nil
-            case Some(value) if limit > 0 =>
-                    val r = scala.util.Random.nextInt(gram(prevGram).length) //inefficient, maybe probability summary would fix
-                    val newChar = gram(prevGram)(r) 
-                    newChar::helper(limit-1, prevGram.tail:+newChar, gram)
-        }
-        starter ++ helper(lengthLimit-starter.length, starter, gram)
-    }
-
-    /**
-      * Given a gram mapping, randomly pick out a key that reasonably looks like 
-      * the beginning of a sentence/statement
-      *
-      * @param gram ngram mapping
-      */
-    def getStarterTextFromGram(gram:Map[List[Char], List[Char]]):List[Char] = {
-        // Don't want to begin sentence in the middle of a word, so only pick an ngram that starts
-            //with a space, that way we know sentence starts with a whole word
-        //There are probably more clever ways to do this, but doing this easy option for now
-            //rly hate this though because this automatically filters out beginning of messages, which are 
-            //the most realistic sentence starters
-        val starters = gram.map(_._1).filter(m => m.head == ' ').toList
-        starters(scala.util.Random.nextInt(starters.length))
-    }
-
-    /**
-      * Given a length limit and ngram mappings, randomly generate text
-      *
-      * @param targetLength
-      * @param gram
-      * @return
-      */
-    def generateChat(lengthLimit:Int, gram:Map[List[Char],List[Char]]):String = {
-        val s = getStarterTextFromGram(gram)
-        getTextFromStarter(lengthLimit, s, gram).mkString
-    }
-    
-    val leon = "54066176"
-    val gruesomeFivesome = "30334096"
+    val userID = "54066176"
+    val groupChatID = "30334096"
 
     //groupMe exports all the messages across dozens of randomly numbered folders, this puts all
     //folder names into a list
     val folderNums = getListOfSubDirectories(new File("../groupMeExport"))
     // val messages = folderNums.map(n => getMessages(n)).flatMap(_.filter(m => m.user_id == leon))
-    val messages = getMessages(gruesomeFivesome)
+    val messages = getMessages(groupChatID)
     
-    val order = 10
+    val order = 12
     val charLimit = 500
-    val grams = parseNgrams(order, messages.map(_.text.toLowerCase()).toList)
-   
+    val ngram = NGram(messages.map(_.text.toLowerCase().toList).toList, order)
+    
     for (_ <- 1 to 10) {
-        println(generateChat(charLimit, grams))
+        println(ngram.generateData().mkString)
     }
+
 }
 
 /*
