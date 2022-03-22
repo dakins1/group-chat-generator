@@ -7,29 +7,6 @@ import scala.io.Codec
 
 import ngram._
 
-case class Message(
-    name:String,
-    text:String,
-    user_id:String
-)
-
-case class Group(
-    name:String,
-    id:String
-)
-
-/*
-json message structure
-export parent folder -> randomly numbered subfolder -> message.json
-array
-    groupid
-    id
-    sender_id
-    basically just an array of messages, and straightforward attribute names
-.json files have all json on one line, no \n formatting for the json itself
-*/
-
-
 object Main extends App {
 
     implicit val formats = DefaultFormats
