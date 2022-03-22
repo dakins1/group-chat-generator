@@ -9,7 +9,7 @@ I started this project because:
 I initially wrote this with a ridiculous, un-readable amounts of foldLefts and other functional functions, because I just enjoy Scala's library that much. But later I realized how awful that code was (totally my fault, though, not Scala's), so I've been re-writing it to be readable.
 
 ### Feature Roadmap:
-- Break out the n-gram algorithm into its own generic class that accepts a Seq of anything; then, have a GroupMe object that handles GroupMe data and implement the n-gram class to produce text output
+- Create separate GroupMe object that handles GroupMe data and implement the n-gram class to produce text output
 - Make all i/o functional with monads and what not -- but there are lots of other functional fundamentals I want to learn before that
 - Command line interface 
   - Allow users to pick a specific user or group chat to use as training data
