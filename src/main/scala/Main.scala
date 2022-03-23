@@ -1,51 +1,17 @@
 import scala.io.StdIn
-import net.liftweb.json.DefaultFormats
-import net.liftweb.json._
-import scala.io.Source
-import java.io.File
-import scala.io.Codec
+
 
 import ngram._
 
 object Main extends App {
 
-    implicit val formats = DefaultFormats
+    //my directory for training data
+    val filePath = "../groupMeExport"
+    val gmExtract = GroupMeExtractor(filePath)
 
-    def getGF(folderNumber:String):Unit= {
-        val filePath = "../groupMeExport/" + folderNumber + "/conversation.json"
-        val messages = Source.fromFile(filePath)(Codec("utf-8")).getLines().toArray.apply(0)
-        //not sure what this line does, keeping it for now but should delete later        
-        // val json = parse(messages).children.map(_.extract[Group])//.filter(_.name != null).filter(_.name == "Gruesome Fivesome").head.id
-        if (messages.contains("Gruesome Fivesome")) println(messages)
-    }
-
-    //given a subfolder number, extract all messages from that subfolder
-    def getMessages(folderNumber:String):Seq[Message] = {
-        val filePath = "../groupMeExport/" + folderNumber + "/message.json"
-        //entirety of json object is one big array of messages, so call .children to get all messages
-        val messageArray = Source.fromFile(filePath)(Codec("utf-8")).mkString
-        val json = parse(messageArray).children 
-        json.map(_.extract[Message]).filter(_.text != null)
-    }
-
-    //From alvin alexander
-    def getListOfSubDirectories(dir: File): List[String] = dir.listFiles
-        .filter(_.isDirectory)
-        .map(_.getName)
-        .toList
-    
-    val userID = "54066176"
-    val groupChatID = "30334096"
-
-    //groupMe exports all the messages across dozens of randomly numbered folders, this puts all
-    //folder names into a list
-    val folderNums = getListOfSubDirectories(new File("../groupMeExport"))
-    // val messages = folderNums.map(n => getMessages(n)).flatMap(_.filter(m => m.user_id == leon))
-    val messages = getMessages(groupChatID)
-    
     val order = 12
     val charLimit = 500
-    val ngram = NGram(messages.map(_.text.toLowerCase().toList).toList, order)
+    val ngram = NGram(gmExtract.trainingData, order)
     
     for (_ <- 1 to 10) {
         println(ngram.generateData().mkString)
