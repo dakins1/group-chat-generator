@@ -23,10 +23,10 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
       */
     private def parseNgram(n:Int, data:List[A], chain:Map[List[A], List[A]] = Map.empty[List[A], List[A]] ):Map[List[A],List[A]] = {
 
-        def helper(sublist:List[A], nAs:List[A], nAsLength:Int, chain:Map[List[A], List[A]]):Map[List[A],List[A]] = (sublist -> nAs) match {
-            case (Nil, _) => chain 
-            case (s::ss, nAs) if (nAsLength < n) => helper(ss, nAs:+s, nAsLength+1, chain)
-            case (s::ss, nAs) =>     
+        def helper(sublist:List[A], nAs:List[A], nAsLength:Int, chain:Map[List[A], List[A]]):Map[List[A],List[A]] = sublist match {
+            case Nil => chain 
+            case s::ss if (nAsLength < n) => helper(ss, nAs:+s, nAsLength+1, chain)
+            case s::ss =>     
                 val followers = chain.getOrElse(nAs, Nil)
                 val newChain = chain + (nAs -> (s::followers))
                 helper(ss, nAs.tail:+s, nAsLength, newChain) 
@@ -57,7 +57,7 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
       * @return
       */
     private def getDataFromStarter(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
-
+        //use limit to count down rather than up
         def helper(limit:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = gram.get(prevGram) match {
             case _ if limit == 0 => Nil
             case None => Nil
