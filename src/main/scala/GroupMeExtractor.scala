@@ -48,7 +48,7 @@ class GroupMeExtractor(val filePath:String) {
     lazy val allMessages = groupIDs.flatMap(id => getMessages(id))
 
     //From alvin alexander
-    def getListOfSubDirectories(dir:String): List[String] = (new File(dir)).listFiles
+    private def getListOfSubDirectories(dir:String): List[String] = (new File(dir)).listFiles
         .filter(_.isDirectory)
         .map(_.getName)
         .toList
@@ -60,7 +60,7 @@ class GroupMeExtractor(val filePath:String) {
       * @param groupId
       * @return an array of Messages
       */
-    def getMessages(groupID:String):Seq[Message] = {
+    private def getMessages(groupID:String):Seq[Message] = {
         val fp = f"$filePath/$groupID/message.json"
         //entirety of json object is one big array of messages, so call .children to get all messages
         val messageString = Source.fromFile(fp)(Codec("utf-8")).mkString
