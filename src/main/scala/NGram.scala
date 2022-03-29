@@ -47,29 +47,50 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
         }
     }
 
+    
+    
     /**
-      * Given a starting List[A] that is within the possible ngram mappings, generate data up to specified length
-      * using the ngram probabilities
-      *
-      * @param targetLength max length of generated data
-      * @param starter starting input, must be within possible ngram mappings
-      * @param gram pre-generated ngram mappings
-      * @return
-      */
+     * Given a starting List[A] that is within the possible ngram mappings, generate data up to specified length
+     * using the ngram probabilities
+     *
+     * @param targetLength max length of generated data
+     * @param starter starting input, must be within possible ngram mappings
+     * @param gram pre-generated ngram mappings
+     * @return
+    */
     private def getDataFromStarter(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
-        //use limit to count down rather than up
-        def helper(limit:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = gram.get(prevGram) match {
-            case _ if limit == 0 => Nil
-            case None => Nil
-            case Some(value) if limit > 0 =>
-                    //Also need functional way to handle Random generation
-                    val r = scala.util.Random.nextInt(gram(prevGram).length) //inefficient, maybe probability summary would fix
-                    val newA = gram(prevGram)(r) 
-                    newA::helper(limit-1, prevGram.tail:+newA, gram)
-        }
-        starter ++ helper(lengthLimit-starter.length, starter, gram)
+        
+        def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
+            if (dataLength < lengthLimit) {
+                gram.get(prevGram)
+                    .map(possibles => {
+                            //Need functional way to handle Random generation
+                            val r = scala.util.Random.nextInt(possibles.length) //inefficient, fix with probability summary 
+                            val newA = possibles(r) 
+                            newA::helper(dataLength+1, prevGram.tail:+newA, gram)
+                        }
+                    ).getOrElse(Nil)
+            } else Nil
+            
+        starter ++ helper(starter.length, starter, gram)
     }
-
+            
+        // Alternative way of writing this, with case matching. I think this might be more readable, but
+            //to the trained Scala eye the above implementation is probably just as readable while being more succinct. 
+        private def getDataFromStarter_1(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
+            def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
+                if (dataLength < lengthLimit) {
+                    gram.get(prevGram) match {
+                        case None => Nil
+                        case Some(possibles) =>
+                                val r = scala.util.Random.nextInt(possibles.length) 
+                                val newA = possibles(r) 
+                                newA::helper(dataLength+1, prevGram.tail:+newA, gram)
+                    }
+                } else Nil
+            starter ++ helper(starter.length, starter, gram)
+        }
+            
     /**
       * Given a gram mapping, randomly pick out a key that reasonably looks like 
       * the beginning of a sentence/statement
@@ -102,10 +123,8 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
 
     // Defaulting to max int value is lame, but easy temporary solution while I get class interface working
         // Need to re-write getTextFromStarter to handle infinite strings (and make tailrec too if we're going that deep)
-    def generateData():List[A] = lengthLimit match {
-        case None => generateData(Int.MaxValue, grams)
-        case Some(lim) => generateData(lim, grams)
-    }
+    def generateData():List[A] = 
+        generateData(lengthLimit.getOrElse(Int.MaxValue), grams)
 
 
 

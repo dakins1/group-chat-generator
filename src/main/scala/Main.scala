@@ -9,7 +9,7 @@ object Main extends App {
     val filePath = "../groupMeExport"
     val gmExtract = GroupMeExtractor(filePath)
 
-    val order = 12
+    val order = 10
     val charLimit = 500
     val ngram = NGram(gmExtract.trainingData, order)
     
