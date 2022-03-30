@@ -58,8 +58,15 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
      * @param gram pre-generated ngram mappings
      * @return
     */
-    private def getDataFromStarter(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
-        
+    private def getDataFromStarter_(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
+        /* making this tailrec:
+                1) create new dataBuilder argument and append newA to the dataBuilder arg of the recursive call 
+                2) at this point we could reasonably have dataLength as an Option. Now we have two options,
+                    the gram.get and the dataLength
+                    so that would be something like
+                    want to change logic if there is a length limit
+                    dataLength.map(len => 
+        */
         def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
             if (dataLength < lengthLimit) {
                 gram.get(prevGram)
@@ -74,10 +81,31 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
             
         starter ++ helper(starter.length, starter, gram)
     }
+
+    private def getDataFromStarter(lengthLimit:Option[Int], starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
+
+        def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = {
+            gram.get(prevGram)
+                .map(possibles => {
+                    lengthLimit.map(lim => {
+                        if (dataLength < lim) {
+                            val r = scala.util.Random.nextInt(possibles.length) 
+                            val newA = possibles(r) 
+                            newA::helper(dataLength+1, prevGram.tail:+newA, gram)
+                        } else Nil
+                    }).getOrElse{
+                        val r = scala.util.Random.nextInt(possibles.length) 
+                        val newA = possibles(r) 
+                        newA::helper(dataLength, prevGram.tail:+newA, gram)
+                    }
+                }).getOrElse(Nil)
+        }
+        starter ++ helper(starter.length, starter, gram)
+    }
             
         // Alternative way of writing this, with case matching. I think this might be more readable, but
             //to the trained Scala eye the above implementation is probably just as readable while being more succinct. 
-        private def getDataFromStarter_1(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
+        private def getDataFromStarter_2(lengthLimit:Int, starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
             def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
                 if (dataLength < lengthLimit) {
                     gram.get(prevGram) match {
@@ -116,7 +144,7 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
       * @param gram
       * @return
       */
-    private def generateData(lengthLimit:Int, gram:Map[List[A],List[A]]):List[A] = {
+    private def generateData(lengthLimit:Option[Int], gram:Map[List[A],List[A]]):List[A] = {
         val s = getStarterTextFromGram(gram)
         getDataFromStarter(lengthLimit, s, gram)
     }
@@ -124,7 +152,7 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
     // Defaulting to max int value is lame, but easy temporary solution while I get class interface working
         // Need to re-write getTextFromStarter to handle infinite strings (and make tailrec too if we're going that deep)
     def generateData():List[A] = 
-        generateData(lengthLimit.getOrElse(Int.MaxValue), grams)
+        generateData(lengthLimit, grams)
 
 
 
