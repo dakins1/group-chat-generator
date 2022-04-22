@@ -16,6 +16,9 @@ I initially wrote this with a ridiculous, un-readable amounts of foldLefts and o
     - User would just dump all their GroupMe data, and the program would parse available users and group chats
 - Optimize gram to character mapping selection 
   - Current implementation is to store every instance -- including duplicates -- of every following char for a given gram, then randomly index from that storage when building text. This iterates over every element, however, since we index a list. Instead, gram mappings should point to a summary of characters and occurences to more quickly determine next char in generated text.
+- Look into reversing the order of parsing and data generation to use more prepends than appends
+  - But I'm thinking any optimization might wash out since we typically work with both ends of the gram list
+  - And parsing has to be in order, unless we constantly reverse each gram
 - Convert random indexes to pure functions
 - Improve picking out starting text
   - Not sure if it's possible, but maybe defining some sort of HOF that takes function as input for picking a starting text from training data
