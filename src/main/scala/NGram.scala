@@ -57,9 +57,9 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
      * @param gram pre-generated ngram mappings
      * @return
     */
-    def getDataFromStarter(starter:List[A], gram:Map[List[A], List[A]]):LazyList[A] = {
+    def getDataFromStarter(starter:List[A]):LazyList[A] = {
         starter ++: LazyList.unfold(starter){case (prevGram) => {
-            gram.get(prevGram).map(possibles => {
+            grams.get(prevGram).map(possibles => {
                     // Need to make this Random a pure function
                     val r = scala.util.Random.nextInt(possibles.length) // inefficient, probability summary would fix
                     val newA = possibles(r) 
@@ -74,7 +74,7 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
       *
       * @param gram ngram mapping
       */
-    private def getStarterTextFromGram(gram:Map[List[A], List[A]]):List[A] = {
+    def getStarterTextFromGrams:List[A] = {
         // Don't want to begin sentence in the middle of a word, so only pick an ngram that starts
             //with a space, that way we know sentence starts with a whole word
         //There are probably more clever ways to do this, but doing this easy option for now
@@ -83,27 +83,26 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
         // TODO: keeping this as '...Text...' function since it still can only work with text. 
             // Need to devise way for starters with generic type
         // val starters = gram.map(_._1).filter(m => m.head == ' ').toList
-        val starters = gram.map(_._1).toList
+        val starters = grams.map(_._1).toList
         starters(scala.util.Random.nextInt(starters.length))
     }
 
     /**
-      * Lazily generate text from a random starting list.
+      * Lazily generate text from a random starting list until markov chain reaches a terminal
       *
       * @return a lazy list of data to be generated
       */
     def generateLazyData:LazyList[A] = {
-        val s = getStarterTextFromGram(grams)
-        getDataFromStarter(s, grams)
+        getDataFromStarter(getStarterTextFromGrams)
     }
     
     /**
       * Generate data from random starting list until markov chain reaches a terminal.
-      * Adhere to this NGram object's length limit if specified. 
+      * Adheres to this NGram object's length limit if specified
       * 
       * @return a list of the generated data
       */
-    def generateData() = {
+    def generateData = {
         val data = generateLazyData
         lengthLimit
             .map(lim => data.take(lim).toList)
