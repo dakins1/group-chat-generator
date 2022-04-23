@@ -58,14 +58,16 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
      * @return
     */
     def getDataFromStarter(starter:List[A]):LazyList[A] = {
-        starter ++: LazyList.unfold(starter){case (prevGram) => {
-            grams.get(prevGram).map(possibles => {
-                    // Need to make this Random a pure function
-                    val r = scala.util.Random.nextInt(possibles.length) // inefficient, probability summary would fix
-                    val newA = possibles(r) 
-                    newA -> (prevGram.tail:+newA)
+        starter ++: LazyList.unfold(starter)(prevGram => {
+            grams
+            .get(prevGram)
+            .map(possibles => {
+                // Need to make this Random a pure function
+                val r = scala.util.Random.nextInt(possibles.length) // inefficient, probability summary would fix
+                val newA = possibles(r) 
+                newA -> (prevGram.tail:+newA)
             })
-        }}
+        })
     }
 
     /**
