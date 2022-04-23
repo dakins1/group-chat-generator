@@ -15,9 +15,9 @@ object Main extends App {
     val data = List(List(1,2,3,4,5,6,7,8,9,10), List(2,4,6,8,10), List(1,3,5,7,9))
     // val ngram = NGram(data, order)
     
-    for (_ <- 1 to 10) {
+    for (_ <- 10 to 10) {
         // println(ngram.generateData().mkString)
-        println(ngram.generateLazyData().mkString)
+        println(ngram.generateLazyData.take(1000).mkString)
     }
 
 }

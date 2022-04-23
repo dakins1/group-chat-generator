@@ -50,89 +50,18 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
     }
     
     /**
-     * Given a starting List[A] that is within the possible ngram mappings, generate data up to specified length
-     * using the ngram probabilities
+     * Given a starting List[A] that is within the possible ngram mappings, generate data using the ngram probabilities 
+     * until the chain reaches a terminal 
      *
-     * @param targetLength max length of generated data
      * @param starter starting input, must be within possible ngram mappings
      * @param gram pre-generated ngram mappings
      * @return
     */
-    private def getDataFromStarter_(lengthLimit:Option[Int], starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
-        // The tricky part of this function is treating the lengthLimit as a true Option. My original implementation 
-            // used Int.MaxValue if a lengthLimit was not specified. This was a poor implementation since you could
-            // theoretically generate data that is longer than the integer limit. For generating text, 2 billion 
-            // characters wouldn't even come close to the length of War and Peace. But for something like DNA sequencing,
-            // 2 billion might be more plausible. (Obviously this program would not be used to generate a 2b DNA 
-            // sequence...but it's fun to imagine.). OR, you might know your training data would create more terminals than
-            // nonterminals in the Markov chain, and would rather let it naturally terminate than cut it off early. 
-            // Furthermore, I value doing things the right way, and in this case we have dodged using a sentinel value. 
-        // Hence, whether or not we have a length limit noticeably alters the flow of this function. With a sentinel value,
-            // we could have baked this logic into the if (dataLength < lim) condition. But there is no way to combine the 
-            // check for that limit without unwrapping it first, and we end up with a heftier function. 
-        def helper(dataLength:Int, prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = {
-            gram.get(prevGram)
-                .map(possibles => {
-                    lengthLimit.map(lim => {
-                        if (dataLength < lim) {
-                            // Need to make this Random a pure function
-                            val r = scala.util.Random.nextInt(possibles.length) //inefficient, fix with probability summary 
-                            val newA = possibles(r) 
-                            newA::helper(dataLength+1, prevGram.tail:+newA, gram)
-                        } else Nil
-                    }).getOrElse{
-                        val r = scala.util.Random.nextInt(possibles.length) 
-                        val newA = possibles(r) 
-                        newA::helper(dataLength, prevGram.tail:+newA, gram)
-                    }
-                }).getOrElse(Nil)
-        }
-        starter ++ helper(starter.length, starter, gram)
-    }
-
-    // Now, despite all the fun option maps in the above function, it is not tail recursive since mapping work 
-        // must be done after the function returns. Here is an alternate implementation that is tailrec.
-    // While this repeats a decent bit of code and isn't quite as elegant, I think it does more naturally 
-        // show the logical differences between having a limit and no limit. There's a stronger distinction 
-        // than the first implementation, thus this version might be more readable. I still think the first 
-        // one is way more fun. 
-    private def getDataFromStarter(lengthLimit:Option[Int], starter:List[A], gram:Map[List[A],List[A]]):List[A] = {
-        @tailrec
-        def noLimitHelper(dataBuilder:List[A], prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
-            gram.get(prevGram) match {
-                case None => dataBuilder.reverse // dataBuilder allows for tailrecursion. Prepending prevents us from traversing
-                                                 // the entire output for every additional element. Just have to reverse at the end.
-                case Some(possibles) => {
-                    // Need to make this Random a pure function
-                    val r = scala.util.Random.nextInt(possibles.length) //inefficient, fix with probability summary 
-                    val newA = possibles(r) 
-                    noLimitHelper(newA::dataBuilder, prevGram.tail:+newA, gram)
-                } 
-            }
-        @tailrec
-        def limitHelper(limit:Int, dataLength:Int, dataBuilder:List[A], prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
-            gram.get(prevGram) match {
-                case None => dataBuilder.reverse
-                case Some(possibles) => {
-                    if (dataLength < limit) {
-                        val r = scala.util.Random.nextInt(possibles.length) 
-                        val newA = possibles(r) 
-                        limitHelper(limit, dataLength+1, newA::dataBuilder, prevGram.tail:+newA, gram)
-                    } else dataBuilder.reverse
-                }
-            }
-        lengthLimit.map(lim => 
-            limitHelper(lim, starter.length, starter.reverse, starter, gram)
-        ).getOrElse(noLimitHelper(starter.reverse, starter, gram))
-        
-    }
-
-    def getLazyDataFromStarter(starter:List[A], gram:Map[List[A], List[A]]):LazyList[A] = {
-        // Here we go back to naturally constructing the list, so no need for 
-            // reversing like in above implementation
+    def getDataFromStarter(starter:List[A], gram:Map[List[A], List[A]]):LazyList[A] = {
         starter ++: LazyList.unfold(starter){case (prevGram) => {
             gram.get(prevGram).map(possibles => {
-                    val r = scala.util.Random.nextInt(possibles.length) 
+                    // Need to make this Random a pure function
+                    val r = scala.util.Random.nextInt(possibles.length) // inefficient, probability summary would fix
                     val newA = possibles(r) 
                     newA -> (prevGram.tail:+newA)
             })
@@ -159,29 +88,37 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
     }
 
     /**
-      * Given a length limit and ngram mappings, randomly generate text
+      * Lazily generate text from a random starting list.
       *
-      * @param targetLength
-      * @param gram
-      * @return
+      * @return a lazy list of data to be generated
       */
-    private def generateData(lengthLimit:Option[Int], gram:Map[List[A],List[A]]):List[A] = {
-        val s = getStarterTextFromGram(gram)
-        getDataFromStarter(lengthLimit, s, gram)
-    }
-
-    def generateLazyData() = {
+    def generateLazyData:LazyList[A] = {
         val s = getStarterTextFromGram(grams)
-        getLazyDataFromStarter(s, grams)
+        getDataFromStarter(s, grams)
+    }
+    
+    /**
+      * Generate data from random starting list until markov chain reaches a terminal.
+      * Adhere to this NGram object's length limit if specified. 
+      * 
+      * @return a list of the generated data
+      */
+    def generateData() = {
+        val data = generateLazyData
+        lengthLimit
+            .map(lim => data.take(lim).toList)
+            .getOrElse(data.toList)
     }
 
-    // Defaulting to max int value is lame, but easy temporary solution while I get class interface working
-        // Need to re-write getTextFromStarter to handle infinite strings (and make tailrec too if we're going that deep)
-    def generateData():List[A] = 
-        generateData(lengthLimit, grams)
-
-
-
+    /**
+      * Generate data from random starting list up to specified length or until markov chain
+      * reaches a terminal
+      *
+      * @param lengthLimit
+      * @return a list of the generated data
+      */
+    def generateData(limit:Int) =
+        generateLazyData.take(limit).toList
 
 }
 
