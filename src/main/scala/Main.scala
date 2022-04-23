@@ -16,7 +16,8 @@ object Main extends App {
     // val ngram = NGram(data, order)
     
     for (_ <- 1 to 10) {
-        println(ngram.generateData().mkString)
+        // println(ngram.generateData().mkString)
+        println(ngram.generateLazyData().mkString)
     }
 
 }

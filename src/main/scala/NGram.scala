@@ -100,7 +100,8 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
         @tailrec
         def noLimitHelper(dataBuilder:List[A], prevGram:List[A], gram:Map[List[A],List[A]]):List[A] = 
             gram.get(prevGram) match {
-                case None => dataBuilder.reverse
+                case None => dataBuilder.reverse // dataBuilder allows for tailrecursion. Prepending prevents us from traversing
+                                                 // the entire output for every additional element. Just have to reverse at the end.
                 case Some(possibles) => {
                     // Need to make this Random a pure function
                     val r = scala.util.Random.nextInt(possibles.length) //inefficient, fix with probability summary 
@@ -124,6 +125,18 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
             limitHelper(lim, starter.length, starter.reverse, starter, gram)
         ).getOrElse(noLimitHelper(starter.reverse, starter, gram))
         
+    }
+
+    def getLazyDataFromStarter(starter:List[A], gram:Map[List[A], List[A]]):LazyList[A] = {
+        // Here we go back to naturally constructing the list, so no need for 
+            // reversing like in above implementation
+        starter ++: LazyList.unfold(starter){case (prevGram) => {
+            gram.get(prevGram).map(possibles => {
+                    val r = scala.util.Random.nextInt(possibles.length) 
+                    val newA = possibles(r) 
+                    newA -> (prevGram.tail:+newA)
+            })
+        }}
     }
 
     /**
@@ -155,6 +168,11 @@ class NGram[A](val trainingData:List[List[A]], val order:Int, val lengthLimit:Op
     private def generateData(lengthLimit:Option[Int], gram:Map[List[A],List[A]]):List[A] = {
         val s = getStarterTextFromGram(gram)
         getDataFromStarter(lengthLimit, s, gram)
+    }
+
+    def generateLazyData() = {
+        val s = getStarterTextFromGram(grams)
+        getLazyDataFromStarter(s, grams)
     }
 
     // Defaulting to max int value is lame, but easy temporary solution while I get class interface working
