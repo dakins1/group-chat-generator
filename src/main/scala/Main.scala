@@ -11,6 +11,8 @@ object Main extends App {
 
     val order = 9
     val charLimit = 10000
+    val seed = 1000
+    implicit val rng = new scala.util.Random(seed)
     val ngram = NGram(gmExtract.trainingData, order)
     val data = List(List(1,2,3,4,5,6,7,8,9,10), List(2,4,6,8,10), List(1,3,5,7,9))
     // val ngram = NGram(data, order)
