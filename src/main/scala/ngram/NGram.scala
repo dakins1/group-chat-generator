@@ -16,19 +16,24 @@ import scala.util.Random
 class NGram[State](val trainingData:List[List[State]], val order:Int)(implicit rng: Random) {
 
     private val emptyTransitions = Map.empty[List[State], List[State]]
-    val transitions = trainingData.foldLeft(emptyTransitions)((trans, text) => getTransitions(text, trans))
+    val transitions = trainingData.foldLeft(emptyTransitions)((trans, data) => getTransitions(data, trans))
 
     // TODO: consider de-coupling the logic of deriving transitions from combining transitions
     private def getTransitions(sequence:List[State], existingTransitions:Transitions):Transitions = {
 
         @tailrec
-        def slider(remainingStates:List[State], prevNStates:List[State], statesTraversed:Int, existing:Transitions):Transitions = remainingStates match {
+        def slider(
+            remainingStates:List[State], 
+            prevNStates:List[State], 
+            numStatesTraversed:Int, 
+            existing:Transitions
+        ):Transitions = remainingStates match {
             case Nil => existing
-            case s::ss if (statesTraversed < order) => slider(ss, prevNStates:+s, statesTraversed+1, existing)
+            case s::ss if (numStatesTraversed < order) => slider(ss, prevNStates:+s, numStatesTraversed+1, existing)
             case s::ss =>     
                 val followers = existing.getOrElse(prevNStates, Nil)
                 val newTransitions = existing + (prevNStates -> (s::followers))
-                slider(ss, prevNStates.tail:+s, statesTraversed, newTransitions) 
+                slider(ss, prevNStates.tail:+s, numStatesTraversed, newTransitions) 
         }
         slider(sequence, List(), 0, existingTransitions)  
     }
