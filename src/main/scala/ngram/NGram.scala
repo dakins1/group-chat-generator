@@ -9,16 +9,14 @@ import scala.util.Random
   * @param trainingData List of training instances to learn from
   * @param order Number of states on which the prediction of the next state depends
   * {{{
-  * val chars = NGram(List("Hey there", "Hello there"), 10) 
-  * val words = NGram(List(List("Hey", "there"), List("Hello", "there")), 1)
+  *     val chars = NGram(List("Hey there", "Hello there"), 10) 
+  *     val words = NGram(List(List("Hey", "there"), List("Hello", "there")), 1)
   * }}}
   */
 class NGram[State](val trainingData:List[List[State]], val order:Int)(implicit rng: Random) {
 
-    private val emptyTransitions = Map.empty[List[State], List[State]]
-    val transitions = trainingData.foldLeft(emptyTransitions)((trans, data) => getTransitions(data, trans))
+    val transitions = trainingData.foldLeft(Transitions.empty)((trans, data) => getTransitions(data, trans))
 
-    // TODO: consider de-coupling the logic of deriving transitions from combining transitions
     private def getTransitions(sequence:List[State], existingTransitions:Transitions):Transitions = {
 
         @tailrec
@@ -27,31 +25,35 @@ class NGram[State](val trainingData:List[List[State]], val order:Int)(implicit r
             prevNStates:List[State], 
             numStatesTraversed:Int, 
             existing:Transitions
-        ):Transitions = remainingStates match {
-            case Nil => existing
-            case s::ss if (numStatesTraversed < order) => slider(ss, prevNStates:+s, numStatesTraversed+1, existing)
-            case s::ss =>     
-                val followers = existing.getOrElse(prevNStates, Nil)
-                val newTransitions = existing + (prevNStates -> (s::followers))
-                slider(ss, prevNStates.tail:+s, numStatesTraversed, newTransitions) 
-        }
+        ):Transitions = 
+            remainingStates match {
+                case Nil => existing
+                case s::ss if (numStatesTraversed < order) => slider(ss, prevNStates:+s, numStatesTraversed+1, existing)
+                case s::ss =>     
+                    val newTransitions = existing.add(prevNStates -> s)
+                    slider(ss, prevNStates.tail:+s, numStatesTraversed, newTransitions) 
+            }
+        
         slider(sequence, List(), 0, existingTransitions)  
     }
     
     
     /**
      *  Generate data until termination, beginning with the starter input
+     * this list totally doesnt' have to be length of N, just has to be at least n, and
+     * build off of the last n states
      *
-     * @param starter an n-length sequence of States that is some subsequence of the training data
+     * @param starter an n-length sequence of States that ends with some subsequence of the training data
     */
     def getDataFromStarter(starter:List[State]):LazyList[State] = {
-        starter ++: LazyList.unfold(starter)(prevGram => {
+        val lastN = starter.takeRight(order)
+        starter ++: LazyList.unfold(lastN)(prevNStates => {
             transitions
-            .get(prevGram)
+            .availableForOption(prevNStates)
             .map(possibles => {
                 val r = rng.nextInt(possibles.length) // inefficient, probability summary would fix
-                val newA = possibles(r) 
-                newA -> (prevGram.tail:+newA)
+                val nextState = possibles(r) 
+                nextState -> (prevNStates.tail:+nextState)
             })
         })
     }
@@ -71,7 +73,7 @@ class NGram[State](val trainingData:List[List[State]], val order:Int)(implicit r
         // TODO: keeping this as '...Text...' function since it still can only work with text. 
             // Need to devise way for starters with generic type
         // val starters = gram.map(_._1).filter(m => m.head == ' ').toList
-        val starters = transitions.map(_._1).toList
+        val starters = transitions.map.map(_._1).toList
         starters(rng.nextInt(starters.length))
     }
 
@@ -91,8 +93,30 @@ class NGram[State](val trainingData:List[List[State]], val order:Int)(implicit r
         generateLazyData.take(limit).toList
 
 
-    type Transitions = Map[List[State], List[State]]
+    // Make a MarkovModel class, abstract to an extent
+    // then an NGram class that uses the MarkovModel?? Or extends it maybe idk
+    // or at least an NGram trainer class, than creates a markov model
+    // then a separate execution context for a model
+    class Transitions(val map: Map[List[State], List[State]]) {
+
+        def availableFor(nStates: List[State]): List[State] = map.getOrElse(nStates, Nil)
+        def availableForOption(nStates: List[State]): Option[List[State]] = map.get(nStates)
+       
+        def add(transition: (List[State],State)): Transitions = {
+            val (nStates, state) = transition
+            val ps = this.availableFor(nStates)
+            val newTrans = map + (nStates -> (state::ps))
+            Transitions(newTrans)
+        }
+
+    }
+
+    object Transitions {
+        def apply(map: Map[List[State], List[State]]) = new Transitions(map)
+        def empty = Transitions(Map.empty[List[State], List[State]])
+    }
 }
+
 
 object NGram {
     /**
